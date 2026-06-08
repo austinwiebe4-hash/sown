@@ -26,17 +26,21 @@ function last14Days() {
 export default function Dashboard() {
   const navigate = useNavigate()
   const [stats, setStats] = useState({ streak: 0, longestStreak: 0, totalChapters: 0, totalVerses: 0 })
-  const [translation, setTranslation] = useState(() => localStorage.getItem('ep_bible_translation') || 'NIV 1984')
   const [loading, setLoading] = useState(true)
   const [calendar, setCalendar] = useState({})
 
   useEffect(() => {
     async function load() {
-      const [{ count: totalChapters }, { count: totalVerses }, { data: dates }] = await Promise.all([
-        supabase.from('chapters_read').select('*', { count: 'exact', head: true }),
-        supabase.from('verses').select('*', { count: 'exact', head: true }),
-        supabase.from('chapters_read').select('date_read').order('date_read', { ascending: false }),
-      ])
+      try {
+        const [chaptersResult, versesResult, datesResult] = await Promise.all([
+          supabase.from('chapters_read').select('*', { count: 'exact', head: true }),
+          supabase.from('verses').select('*', { count: 'exact', head: true }),
+          supabase.from('chapters_read').select('date_read').order('date_read', { ascending: false }),
+        ])
+
+        const totalChapters = chaptersResult.count || 0
+        const totalVerses = versesResult.count || 0
+        const dates = datesResult.data || []
 
       // Build calendar for last 14 days
       const last14 = last14Days()
@@ -81,31 +85,20 @@ export default function Dashboard() {
         longestStreak = Math.max(longestStreak, tempStreak)
       }
 
-      setStats({ streak, longestStreak, totalChapters: totalChapters ?? 0, totalVerses: totalVerses ?? 0 })
-      setLoading(false)
+        setStats({ streak, longestStreak, totalChapters, totalVerses })
+        setLoading(false)
+      } catch (error) {
+        console.error('Error loading dashboard:', error)
+        setLoading(false)
+      }
     }
     load()
   }, [])
 
-  function handleTranslationChange(e) {
-    const val = e.target.value
-    setTranslation(val)
-    localStorage.setItem('ep_bible_translation', val)
-  }
-
   return (
     <div className="page">
       <p className="sown-tagline">Sown</p>
-      <div className="greeting-row">
-        <h1 className="page-title">{getGreeting()}.</h1>
-        <select className="translation-select" value={translation} onChange={handleTranslationChange}>
-          <option>NIV 1984</option>
-          <option>ESV</option>
-          <option>NRSV</option>
-          <option>KJV</option>
-          <option>NASB</option>
-        </select>
-      </div>
+      <h1 className="page-title">{getGreeting()}.</h1>
 
       {loading ? (
         <div className="loading-row">Loading…</div>

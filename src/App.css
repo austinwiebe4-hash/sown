@@ -51,9 +51,7 @@ body { font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font
 
 .sown-tagline { font-family: var(--serif); font-size: 0.85rem; color: var(--accent); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 8px; }
 
-.greeting-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
-.translation-select { padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-family: var(--sans); font-size: 0.8rem; cursor: pointer; }
-.translation-select:focus { outline: 2px solid var(--accent); }
+.greeting-row { margin-bottom: 20px; }
 
 /* Nav */
 .bottom-nav {
