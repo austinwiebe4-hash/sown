@@ -97,12 +97,19 @@ export default function VerseBank() {
   const [verses, setVerses] = useState([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [bookFilter, setBookFilter] = useState('')
   const [themeFilter, setThemeFilter] = useState('')
+  const [sortBy, setSortBy] = useState('newest')
   const [showForm, setShowForm] = useState(false)
 
   async function load() {
-    const { data } = await supabase.from('verses').select('*').order('created_at', { ascending: false })
-    setVerses(data ?? [])
+    try {
+      const { data, error } = await supabase.from('verses').select('*').order('created_at', { ascending: false })
+      if (error) throw error
+      setVerses(data ?? [])
+    } catch (error) {
+      console.error('Error loading verses:', error)
+    }
     setLoading(false)
   }
 
@@ -110,18 +117,42 @@ export default function VerseBank() {
 
   async function handleDelete(id) {
     if (!confirm('Delete this verse?')) return
-    await supabase.from('verses').delete().eq('id', id)
-    setVerses(v => v.filter(x => x.id !== id))
+    try {
+      await supabase.from('verses').delete().eq('id', id)
+      setVerses(v => v.filter(x => x.id !== id))
+    } catch (error) {
+      console.error('Error deleting verse:', error)
+    }
   }
 
-  const themes = [...new Set(verses.map(v => v.theme).filter(Boolean))]
+  const books = [...new Set(verses.map(v => v.book))].sort()
+  const themes = [...new Set(verses.map(v => v.theme).filter(Boolean))].sort()
 
-  const filtered = verses.filter(v => {
+  let filtered = verses.filter(v => {
+    const matchBook = !bookFilter || v.book === bookFilter
     const matchTheme = !themeFilter || v.theme === themeFilter
-    const q = search.toLowerCase()
-    const matchSearch = !q || v.book.toLowerCase().includes(q) || (v.note || '').toLowerCase().includes(q) || (v.theme || '').toLowerCase().includes(q)
-    return matchTheme && matchSearch
+    const q = search.toLowerCase().trim()
+
+    let matchSearch = true
+    if (q) {
+      const verseRef = `${v.book} ${v.chapter}:${v.verse}`.toLowerCase()
+      const verseText = (v.note || '').toLowerCase()
+      const bookName = v.book.toLowerCase()
+      const theme = (v.theme || '').toLowerCase()
+      matchSearch = verseRef.includes(q) || verseText.includes(q) || bookName.includes(q) || theme.includes(q)
+    }
+
+    return matchBook && matchTheme && matchSearch
   })
+
+  // Sort
+  if (sortBy === 'newest') {
+    filtered = [...filtered].reverse()
+  } else if (sortBy === 'oldest') {
+    // already sorted this way from DB
+  } else if (sortBy === 'alphabetical') {
+    filtered = [...filtered].sort((a, b) => `${a.book} ${a.chapter}`.localeCompare(`${b.book} ${b.chapter}`))
+  }
 
   return (
     <div className="page">
@@ -136,17 +167,29 @@ export default function VerseBank() {
         <AddVerseForm onAdded={() => { setShowForm(false); load() }} />
       )}
 
-      <div className="filter-row">
+      <div className="search-box">
         <input
           className="search-input"
           type="text"
-          placeholder="Search book or keyword…"
+          placeholder="Search verse reference, text, or keyword… (e.g. 'John 3:16' or 'faith')"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
+      </div>
+
+      <div className="filter-row">
+        <select value={bookFilter} onChange={e => setBookFilter(e.target.value)}>
+          <option value="">All books</option>
+          {books.map(b => <option key={b}>{b}</option>)}
+        </select>
         <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)}>
           <option value="">All themes</option>
           {themes.map(t => <option key={t}>{t}</option>)}
+        </select>
+        <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+          <option value="newest">Newest first</option>
+          <option value="oldest">Oldest first</option>
+          <option value="alphabetical">By book</option>
         </select>
       </div>
 

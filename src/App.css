@@ -203,11 +203,10 @@ body { font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font
 .chapter-cell input[type="checkbox"] { display: none; }
 
 /* Verse Bank */
-.filter-row { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.search-box { margin-bottom: 12px; }
 .search-input {
-  flex: 1;
-  min-width: 160px;
-  padding: 9px 12px;
+  width: 100%;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -215,16 +214,22 @@ body { font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font
   font-family: var(--sans);
   font-size: 0.88rem;
 }
+.search-input:focus { outline: 2px solid var(--accent); }
+
+.filter-row { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 .filter-row select {
-  padding: 9px 12px;
+  flex: 1;
+  min-width: 100px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
-.search-input:focus, .filter-row select:focus { outline: 2px solid var(--accent); }
+.filter-row select:focus { outline: 2px solid var(--accent); }
 
 .verse-list { display: flex; flex-direction: column; gap: 10px; }
 .verse-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
