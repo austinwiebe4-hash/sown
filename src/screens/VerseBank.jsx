@@ -4,78 +4,120 @@ import { ALL_BOOK_NAMES } from '../lib/bibleData'
 import { fetchVerse } from '../lib/bibleAPI'
 
 function AddVerseForm({ onAdded }) {
-  const [form, setForm] = useState({ book: 'Genesis', chapter: '', verse: '', theme: '', note: '' })
+  const [reference, setReference] = useState('')
+  const [note, setNote] = useState('')
+  const [theme, setTheme] = useState('')
   const [saving, setSaving] = useState(false)
   const [fetching, setFetching] = useState(false)
   const [error, setError] = useState('')
+  const [verseText, setVerseText] = useState('')
 
-  function set(field, val) {
-    setForm(f => ({ ...f, [field]: val }))
-  }
+  async function handleFetchVerse() {
+    if (!reference.trim()) { setError('Enter verse reference (e.g., John 3:16)'); return }
 
-  async function fetchVerseText() {
-    if (!form.chapter || !form.verse) { setError('Chapter and verse are required.'); return }
     setFetching(true)
     setError('')
-    const verseText = await fetchVerse(form.book, form.chapter, form.verse)
+
+    // Parse reference: "John 3:16" or "John 3:16-18"
+    const match = reference.match(/^([\d\w\s]+?)\s+(\d+):(\d+.*)$/)
+    if (!match) { setError('Format: Book Chapter:Verse (e.g., John 3:16)'); setFetching(false); return }
+
+    const book = match[1].trim()
+    const chapter = match[2]
+    const verse = match[3]
+
+    const text = await fetchVerse(book, chapter, verse)
     setFetching(false)
-    if (verseText) {
-      set('note', verseText)
+
+    if (text) {
+      setVerseText(text)
+      setNote(text)
     } else {
-      setError('Verse not found. Try entering it manually.')
+      setError('Verse not found. Check spelling or enter text manually.')
     }
   }
 
   async function submit(e) {
     e.preventDefault()
-    if (!form.chapter || !form.verse) { setError('Chapter and verse are required.'); return }
+    if (!reference.trim() || !note.trim()) { setError('Verse reference and text required'); return }
+
+    const match = reference.match(/^([\d\w\s]+?)\s+(\d+):(\d+.*)$/)
+    if (!match) { setError('Invalid reference format'); return }
+
+    const book = match[1].trim()
+    const chapter = parseInt(match[2])
+    const verse = match[3]
+
     setSaving(true)
     setError('')
-    const { error: err } = await supabase.from('verses').insert({
-      book: form.book,
-      chapter: parseInt(form.chapter),
-      verse: form.verse,
-      theme: form.theme,
-      note: form.note,
-    })
-    if (err) { setError(err.message); setSaving(false); return }
-    setForm({ book: 'Genesis', chapter: '', verse: '', theme: '', note: '' })
-    setSaving(false)
-    onAdded()
+
+    try {
+      const { error: err } = await supabase.from('verses').insert({
+        book,
+        chapter,
+        verse,
+        theme: theme.trim() || null,
+        note,
+      })
+
+      if (err) throw err
+
+      setReference('')
+      setNote('')
+      setTheme('')
+      setVerseText('')
+      setSaving(false)
+      onAdded()
+    } catch (error) {
+      setError(error.message)
+      setSaving(false)
+    }
   }
 
   return (
     <form className="add-verse-form" onSubmit={submit}>
       <h3 className="form-title">Add a Verse</h3>
-      <div className="form-row">
-        <div className="form-group">
-          <label>Book</label>
-          <select value={form.book} onChange={e => set('book', e.target.value)}>
-            {ALL_BOOK_NAMES.map(b => <option key={b}>{b}</option>)}
-          </select>
-        </div>
-        <div className="form-group narrow">
-          <label>Chapter</label>
-          <input type="number" min="1" value={form.chapter} onChange={e => set('chapter', e.target.value)} placeholder="1" />
-        </div>
-        <div className="form-group narrow">
-          <label>Verse(s)</label>
-          <input type="text" value={form.verse} onChange={e => set('verse', e.target.value)} placeholder="3 or 5-9" />
-        </div>
+
+      <div className="form-group">
+        <label>Verse reference</label>
+        <input
+          type="text"
+          value={reference}
+          onChange={e => setReference(e.target.value)}
+          placeholder="e.g., John 3:16 or John 3:16-18"
+        />
       </div>
-      <button className="btn-secondary" type="button" onClick={fetchVerseText} disabled={fetching} style={{ marginBottom: '12px' }}>
-        {fetching ? 'Looking up…' : 'Auto-fetch NIV'}
+
+      <button className="btn-secondary" type="button" onClick={handleFetchVerse} disabled={fetching} style={{ marginBottom: '12px', width: '100%' }}>
+        {fetching ? 'Searching…' : 'Search NIV 1984'}
       </button>
+
+      {verseText && <p className="verse-preview">{verseText}</p>}
+
       <div className="form-group">
-        <label>Theme</label>
-        <input type="text" value={form.theme} onChange={e => set('theme', e.target.value)} placeholder="e.g. faith, grace, prayer" />
+        <label>Verse text (edit if needed)</label>
+        <textarea
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="Retrieved verse text will appear here"
+          rows={4}
+        />
       </div>
+
       <div className="form-group">
-        <label>Note / Verse text</label>
-        <textarea value={form.note} onChange={e => set('note', e.target.value)} placeholder="Paste or auto-fetch the full verse text here to use Memorization Mode later." rows={4} />
+        <label>Theme (optional)</label>
+        <input
+          type="text"
+          value={theme}
+          onChange={e => setTheme(e.target.value)}
+          placeholder="e.g., faith, grace, hope"
+        />
       </div>
+
       {error && <p className="error-text">{error}</p>}
-      <button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Verse'}</button>
+      <button className="btn-primary" type="submit" disabled={saving} style={{ width: '100%' }}>
+        {saving ? 'Saving…' : 'Save Verse'}
+      </button>
     </form>
   )
 }
@@ -145,11 +187,10 @@ export default function VerseBank() {
     return matchBook && matchTheme && matchSearch
   })
 
-  // Sort
   if (sortBy === 'newest') {
     filtered = [...filtered].reverse()
   } else if (sortBy === 'oldest') {
-    // already sorted this way from DB
+    // already sorted
   } else if (sortBy === 'alphabetical') {
     filtered = [...filtered].sort((a, b) => `${a.book} ${a.chapter}`.localeCompare(`${b.book} ${b.chapter}`))
   }
@@ -159,7 +200,7 @@ export default function VerseBank() {
       <div className="page-header-row">
         <h1 className="page-title">Verse Bank</h1>
         <button className="btn-secondary small" onClick={() => setShowForm(s => !s)}>
-          {showForm ? 'Cancel' : '+ Add verse'}
+          {showForm ? 'Cancel' : '+ Add'}
         </button>
       </div>
 
@@ -171,27 +212,29 @@ export default function VerseBank() {
         <input
           className="search-input"
           type="text"
-          placeholder="Search verse reference, text, or keyword… (e.g. 'John 3:16' or 'faith')"
+          placeholder="Search verse, book, or keyword…"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
-      <div className="filter-row">
-        <select value={bookFilter} onChange={e => setBookFilter(e.target.value)}>
-          <option value="">All books</option>
-          {books.map(b => <option key={b}>{b}</option>)}
-        </select>
-        <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)}>
-          <option value="">All themes</option>
-          {themes.map(t => <option key={t}>{t}</option>)}
-        </select>
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="alphabetical">By book</option>
-        </select>
-      </div>
+      {verses.length > 0 && (
+        <div className="filter-row">
+          <select value={bookFilter} onChange={e => setBookFilter(e.target.value)}>
+            <option value="">All books</option>
+            {books.map(b => <option key={b}>{b}</option>)}
+          </select>
+          <select value={themeFilter} onChange={e => setThemeFilter(e.target.value)}>
+            <option value="">All themes</option>
+            {themes.map(t => <option key={t}>{t}</option>)}
+          </select>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)}>
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="alphabetical">By book</option>
+          </select>
+        </div>
+      )}
 
       {loading ? (
         <div className="loading-row">Loading…</div>

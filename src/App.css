@@ -297,6 +297,7 @@ body { font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font
 }
 .form-group textarea { resize: vertical; line-height: 1.5; }
 .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: 2px solid var(--accent); }
+.verse-preview { font-family: var(--serif); font-size: 0.9rem; line-height: 1.6; color: var(--text-muted); padding: 12px; background: var(--bg); border-radius: 7px; margin-bottom: 12px; font-style: italic; }
 .error-text { color: var(--danger); font-size: 0.82rem; margin-bottom: 8px; }
 
 /* Memorization Mode */
