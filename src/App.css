@@ -108,7 +108,33 @@ body { font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font
 .btn-secondary:hover { opacity: 0.8; }
 .btn-secondary.small { padding: 7px 14px; font-size: 0.82rem; }
 
+/* Modals */
+.modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: flex-end; z-index: 1000; }
+.modal-content { background: var(--surface); border-radius: 20px 20px 0 0; padding: 24px 20px; width: 100%; max-height: 80vh; overflow-y: auto; }
+.modal-content h2 { font-family: var(--serif); font-size: 1.4rem; margin-bottom: 16px; }
+.modal-content .form-group { margin-bottom: 16px; }
+.modal-content input[type="checkbox"] { margin-right: 8px; cursor: pointer; }
+.modal-content input[type="time"] { width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); font-size: 0.9rem; }
+
+.book-selection-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; max-height: 60vh; overflow-y: auto; }
+.book-selection-btn { padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg); color: var(--text); font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+.book-selection-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.settings-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 4px; }
+
 /* Dashboard */
+.verse-of-day { background: var(--accent-light); border: 1px solid var(--accent); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; }
+.verse-of-day-label { font-size: 0.75rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.verse-of-day-ref { font-family: var(--serif); font-size: 1rem; font-weight: 500; color: var(--accent-dark); margin-bottom: 8px; }
+.verse-of-day-text { font-family: var(--serif); font-size: 0.95rem; line-height: 1.6; color: var(--text); margin-bottom: 8px; font-style: italic; }
+.verse-of-day-theme { font-size: 0.75rem; color: var(--text-muted); }
+
+.current-book { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 20px; }
+.current-book-title { font-family: var(--serif); font-size: 1rem; font-weight: 500; margin-bottom: 12px; color: var(--text); }
+
+.empty-book-section { background: var(--surface); border: 2px dashed var(--border); border-radius: var(--radius); padding: 24px; text-align: center; margin-bottom: 20px; }
+.empty-book-text { color: var(--text-muted); margin-bottom: 12px; }
+
 .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
 .stat-card {
   background: var(--surface);
