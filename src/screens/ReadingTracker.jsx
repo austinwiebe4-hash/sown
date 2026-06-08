@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { OLD_TESTAMENT, NEW_TESTAMENT, TOTAL_CHAPTERS } from '../lib/bibleData'
+import Toast from '../components/Toast'
 
 function todayStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
@@ -76,27 +77,45 @@ function BookSection({ title, books, readMap, onToggle }) {
 export default function ReadingTracker() {
   const [readMap, setReadMap] = useState({})
   const [loading, setLoading] = useState(true)
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('chapters_read').select('book, chapter, date_read')
-      const map = {}
-      data?.forEach(r => { map[`${r.book}-${r.chapter}`] = r.date_read })
-      setReadMap(map)
-      setLoading(false)
+      try {
+        const { data, error } = await supabase.from('chapters_read').select('book, chapter, date_read')
+        if (error) throw error
+        const map = {}
+        data?.forEach(r => { map[`${r.book}-${r.chapter}`] = r.date_read })
+        setReadMap(map)
+      } catch (error) {
+        setToast({ message: `✕ Failed to load: ${error.message}`, type: 'error' })
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
 
   async function handleToggle(book, chapter, alreadyRead) {
     const key = `${book}-${chapter}`
-    if (alreadyRead) {
-      setReadMap(m => { const n = { ...m }; delete n[key]; return n })
-      await supabase.from('chapters_read').delete().match({ book, chapter })
-    } else {
-      const date = todayStr()
-      setReadMap(m => ({ ...m, [key]: date }))
-      await supabase.from('chapters_read').insert({ book, chapter, date_read: date })
+    const previousMap = readMap
+
+    try {
+      if (alreadyRead) {
+        setReadMap(m => { const n = { ...m }; delete n[key]; return n })
+        const { error } = await supabase.from('chapters_read').delete().match({ book, chapter })
+        if (error) throw error
+        setToast({ message: '✓ Chapter removed', type: 'success' })
+      } else {
+        const date = todayStr()
+        setReadMap(m => ({ ...m, [key]: date }))
+        const { error } = await supabase.from('chapters_read').insert({ book, chapter, date_read: date })
+        if (error) throw error
+        setToast({ message: `✓ Chapter ${chapter} logged!`, type: 'success' })
+      }
+    } catch (error) {
+      setReadMap(previousMap)
+      setToast({ message: `✕ Failed: ${error.message}`, type: 'error' })
     }
   }
 
@@ -120,6 +139,7 @@ export default function ReadingTracker() {
           <BookSection title="New Testament" books={NEW_TESTAMENT} readMap={readMap} onToggle={handleToggle} />
         </>
       )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

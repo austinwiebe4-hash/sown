@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useNavigate } from 'react-router-dom'
 import { OLD_TESTAMENT, NEW_TESTAMENT } from '../lib/bibleData'
+import Toast from '../components/Toast'
 
 function todayStr() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' })
@@ -137,21 +138,26 @@ export default function Dashboard() {
   const [showSettings, setShowSettings] = useState(false)
   const [showBookSelection, setShowBookSelection] = useState(false)
   const [allVerses, setAllVerses] = useState([])
+  const [toast, setToast] = useState(null)
+  const [loggingChapter, setLoggingChapter] = useState(false)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [chaptersResult, versesResult, datesResult] = await Promise.all([
-          supabase.from('chapters_read').select('*', { count: 'exact', head: true }),
-          supabase.from('verses').select('*'),
-          supabase.from('chapters_read').select('date_read, book, chapter').order('date_read', { ascending: false }),
-        ])
+  async function load() {
+    try {
+      const [chaptersResult, versesResult, datesResult] = await Promise.all([
+        supabase.from('chapters_read').select('*', { count: 'exact', head: true }),
+        supabase.from('verses').select('*'),
+        supabase.from('chapters_read').select('date_read, book, chapter').order('date_read', { ascending: false }),
+      ])
 
-        const totalChapters = chaptersResult.count || 0
-        const versesData = versesResult.data || []
-        const dates = datesResult.data || []
+      if (chaptersResult.error) throw new Error('Could not load reading progress')
+      if (versesResult.error) throw new Error('Could not load verses')
+      if (datesResult.error) throw new Error('Could not load calendar data')
 
-        setAllVerses(versesData)
+      const totalChapters = chaptersResult.count || 0
+      const versesData = versesResult.data || []
+      const dates = datesResult.data || []
+
+      setAllVerses(versesData)
 
         // Set verse of the day
         const today = todayStr()
@@ -220,13 +226,16 @@ export default function Dashboard() {
           longestStreak = Math.max(longestStreak, tempStreak)
         }
 
-        setStats({ streak, longestStreak, totalChapters, totalVerses })
-        setLoading(false)
-      } catch (error) {
-        console.error('Error loading dashboard:', error)
-        setLoading(false)
-      }
+      setStats({ streak, longestStreak, totalChapters, totalVerses })
+      setLoading(false)
+    } catch (error) {
+      console.error('Error loading dashboard:', error)
+      setToast({ message: `✕ ${error.message}`, type: 'error' })
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     load()
   }, [currentBook])
 
@@ -234,6 +243,51 @@ export default function Dashboard() {
     localStorage.setItem('sown_current_book', book)
     setCurrentBook(book)
     setShowBookSelection(false)
+  }
+
+  async function handleQuickLogChapter() {
+    if (!currentBook || loggingChapter) return
+
+    const bookData = [...OLD_TESTAMENT, ...NEW_TESTAMENT].find(b => b.book === currentBook)
+    if (!bookData) return
+
+    // Find next unread chapter
+    let nextChapter = null
+    for (let ch = 1; ch <= bookData.chapters; ch++) {
+      if (!currentBookProgress[ch]) {
+        nextChapter = ch
+        break
+      }
+    }
+
+    if (!nextChapter) {
+      setToast({ message: '✓ Book complete! Choose your next book.', type: 'success' })
+      setShowBookSelection(true)
+      return
+    }
+
+    setLoggingChapter(true)
+    try {
+      const date = todayStr()
+      const { error } = await supabase.from('chapters_read').insert({
+        book: currentBook,
+        chapter: nextChapter,
+        date_read: date
+      })
+
+      if (error) throw error
+
+      // Update local state
+      setCurrentBookProgress(p => ({ ...p, [nextChapter]: true }))
+      setToast({ message: `✓ Chapter ${nextChapter} logged!`, type: 'success' })
+
+      // Refresh dashboard stats
+      load()
+    } catch (error) {
+      setToast({ message: `✕ Failed to log chapter: ${error.message}`, type: 'error' })
+    } finally {
+      setLoggingChapter(false)
+    }
   }
 
   function handleCompleteBook() {
@@ -280,8 +334,15 @@ export default function Dashboard() {
                 <div className="progress-bar-fill" style={{ width: `${(chaptersRead / totalBookChapters) * 100}%` }} />
               </div>
               <p className="progress-label">{chaptersRead} of {totalBookChapters} chapters</p>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
-                <button className="btn-primary" onClick={() => navigate('/tracker')}>Log a chapter</button>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexDirection: 'column' }}>
+                <button
+                  className="btn-primary"
+                  onClick={handleQuickLogChapter}
+                  disabled={loggingChapter || chaptersRead >= totalBookChapters}
+                  style={{ fontSize: '1rem', fontWeight: 500 }}
+                >
+                  {loggingChapter ? 'Saving...' : chaptersRead >= totalBookChapters ? '✓ Completed!' : `📖 Read Chapter ${chaptersRead + 1}`}
+                </button>
                 <button className="btn-secondary" onClick={handleCompleteBook}>Change book</button>
               </div>
             </div>
@@ -334,6 +395,7 @@ export default function Dashboard() {
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       {showBookSelection && <BookSelectionModal onSelect={handleSelectBook} onClose={() => setShowBookSelection(false)} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

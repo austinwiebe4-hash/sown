@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ALL_BOOK_NAMES } from '../lib/bibleData'
 import { fetchVerse } from '../lib/bibleAPI'
+import Toast from '../components/Toast'
 
-function AddVerseForm({ onAdded }) {
+function AddVerseForm({ onAdded, existingVerses }) {
   const [reference, setReference] = useState('')
   const [note, setNote] = useState('')
   const [theme, setTheme] = useState('')
@@ -48,6 +49,13 @@ function AddVerseForm({ onAdded }) {
     const chapter = parseInt(match[2])
     const verse = match[3]
 
+    // Check for duplicates
+    const duplicate = existingVerses?.some(v => v.book === book && v.chapter === chapter && v.verse === verse)
+    if (duplicate) {
+      setError('This verse is already saved! View it in your verse bank.')
+      return
+    }
+
     setSaving(true)
     setError('')
 
@@ -69,7 +77,7 @@ function AddVerseForm({ onAdded }) {
       setSaving(false)
       onAdded()
     } catch (error) {
-      setError(error.message)
+      setError(`✕ Failed to save: ${error.message}`)
       setSaving(false)
     }
   }
@@ -143,6 +151,7 @@ export default function VerseBank() {
   const [themeFilter, setThemeFilter] = useState('')
   const [sortBy, setSortBy] = useState('newest')
   const [showForm, setShowForm] = useState(false)
+  const [toast, setToast] = useState(null)
 
   async function load() {
     try {
@@ -150,7 +159,7 @@ export default function VerseBank() {
       if (error) throw error
       setVerses(data ?? [])
     } catch (error) {
-      console.error('Error loading verses:', error)
+      setToast({ message: `✕ Failed to load verses: ${error.message}`, type: 'error' })
     }
     setLoading(false)
   }
@@ -160,10 +169,12 @@ export default function VerseBank() {
   async function handleDelete(id) {
     if (!confirm('Delete this verse?')) return
     try {
-      await supabase.from('verses').delete().eq('id', id)
+      const { error } = await supabase.from('verses').delete().eq('id', id)
+      if (error) throw error
       setVerses(v => v.filter(x => x.id !== id))
+      setToast({ message: '✓ Verse deleted', type: 'success' })
     } catch (error) {
-      console.error('Error deleting verse:', error)
+      setToast({ message: `✕ Failed to delete: ${error.message}`, type: 'error' })
     }
   }
 
@@ -205,7 +216,7 @@ export default function VerseBank() {
       </div>
 
       {showForm && (
-        <AddVerseForm onAdded={() => { setShowForm(false); load() }} />
+        <AddVerseForm onAdded={() => { setShowForm(false); load(); setToast({ message: '✓ Verse saved!', type: 'success' }) }} existingVerses={verses} />
       )}
 
       <div className="search-box">
@@ -245,6 +256,7 @@ export default function VerseBank() {
           {filtered.map(v => <VerseCard key={v.id} verse={v} onDelete={handleDelete} />)}
         </div>
       )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }

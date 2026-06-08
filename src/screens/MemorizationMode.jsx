@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
+import Toast from '../components/Toast'
 
 function makeBlankExercise(text, difficulty = 'medium') {
   const words = text.split(/\s+/)
@@ -43,11 +44,17 @@ export default function MemorizationMode() {
   const [score, setScore] = useState(null)
   const [difficulty, setDifficulty] = useState('medium')
   const [sessionStarted, setSessionStarted] = useState(false)
+  const [toast, setToast] = useState(null)
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('verses').select('*').not('note', 'is', null).neq('note', '')
-      setVerses(data ?? [])
+      try {
+        const { data, error } = await supabase.from('verses').select('*').not('note', 'is', null).neq('note', '')
+        if (error) throw error
+        setVerses(data ?? [])
+      } catch (error) {
+        setToast({ message: `✕ Failed to load verses: ${error.message}`, type: 'error' })
+      }
       setLoading(false)
     }
     load()
@@ -192,6 +199,7 @@ export default function MemorizationMode() {
           </div>
         </div>
       )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
   )
 }
