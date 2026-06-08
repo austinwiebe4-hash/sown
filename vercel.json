@@ -1,0 +1,17 @@
+{
+  "name": "Sown",
+  "version": 2,
+  "public": false,
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_SUPABASE_URL": "@sown_supabase_url",
+    "VITE_SUPABASE_ANON_KEY": "@sown_supabase_anon_key"
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
